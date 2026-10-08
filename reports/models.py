@@ -36,11 +36,18 @@ class Site(models.Model):
 
 
 class HazardReport(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_PROGRESS = "in_progress", "In progress"
+        CLOSED = "closed", "Closed"
+
     report_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="reports")
     site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name="reports")
     description = models.TextField()
     risk_score = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    evidence_frame = models.TextField(blank=True, default="")
     created_at = models.DateTimeField()
     received_at = models.DateTimeField(auto_now=True)
 

@@ -61,6 +61,39 @@ class HazardSyncTests(TestCase):
         self.assertEqual(HazardReport.objects.count(), 1)
         self.assertEqual(HazardReport.objects.get().description, "Oil spill contained near pump P-302.")
 
+    def test_status_and_evidence_sync_and_update(self):
+        report_id = uuid.uuid4()
+        payload = self.payload(report_id)
+        evidence = "data:image/jpeg;base64,/9j/4AAQ"
+        payload["reports"][0].update({"status": "in_progress", "evidence_frame": evidence})
+        self.client.post("/api/v1/hazards/sync/", payload, format="json")
+        report = HazardReport.objects.get()
+        self.assertEqual(report.status, "in_progress")
+        self.assertEqual(report.evidence_frame, evidence)
+
+        payload["reports"][0]["status"] = "closed"
+        response = self.client.post("/api/v1/hazards/sync/", payload, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(HazardReport.objects.get().status, "closed")
+
+    def test_sync_without_status_defaults_to_open_and_keeps_existing_status(self):
+        report_id = uuid.uuid4()
+        payload = self.payload(report_id)
+        self.client.post("/api/v1/hazards/sync/", payload, format="json")
+        self.assertEqual(HazardReport.objects.get().status, "open")
+        HazardReport.objects.update(status="closed")
+        self.client.post("/api/v1/hazards/sync/", payload, format="json")
+        self.assertEqual(HazardReport.objects.get().status, "closed")
+
+    def test_rejects_invalid_status_and_non_jpeg_evidence(self):
+        payload = self.payload()
+        payload["reports"][0]["status"] = "archived"
+        self.assertEqual(self.client.post("/api/v1/hazards/sync/", payload, format="json").status_code, 400)
+        payload = self.payload()
+        payload["reports"][0]["evidence_frame"] = "javascript:alert(1)"
+        self.assertEqual(self.client.post("/api/v1/hazards/sync/", payload, format="json").status_code, 400)
+        self.assertEqual(HazardReport.objects.count(), 0)
+
     def test_invalid_batch_does_not_partially_sync(self):
         payload = self.payload()
         payload["reports"].append({
@@ -202,6 +235,7 @@ class SmartRigVisionTests(TestCase):
             def __init__(self, classes, confidences):
                 self.cls = Values(classes)
                 self.conf = Values(confidences)
+                self.xyxy = Values([[2, 2, 20, 20] for _ in classes])
 
         class Result:
             names = {0: "fire", 1: "person"}
@@ -254,6 +288,44 @@ class SmartRigVisionTests(TestCase):
         self.assertEqual(result["personnel_count"], 2)
         self.assertEqual(result["frames_analyzed"], 2)
         self.assertEqual(result["fire_positive_frames"], 1)
+        self.assertTrue(result["evidence_frame"].startswith("data:image/jpeg;base64,"))
+
+    def test_no_fire_analysis_has_no_evidence_frame(self):
+        import cv2
+        import numpy as np
+
+        class Empty:
+            names = {0: "fire", 1: "person"}
+            boxes = None
+
+        class FakeModel:
+            names = {0: "fire", 1: "person"}
+
+            def predict(self, source, conf, verbose):
+                return [Empty()]
+
+        with tempfile.TemporaryDirectory() as directory:
+            video_path = f"{directory}\\blank.avi"
+            writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"MJPG"), 2.0, (32, 32))
+            for _ in range(2):
+                writer.write(np.zeros((32, 32, 3), dtype=np.uint8))
+            writer.release()
+            with open(video_path, "rb") as video_file:
+                upload = SimpleUploadedFile("blank.avi", video_file.read(), content_type="video/x-msvideo")
+        vision_status = {
+            "ready": True,
+            "fire_class_names": ["fire"],
+            "person_class_name": "person",
+            "maximum_sampled_frames": 120,
+            "maximum_video_seconds": 300,
+        }
+        with (
+            patch("reports.vision.model_status", return_value=vision_status),
+            patch("reports.vision._load_model", return_value=FakeModel()),
+        ):
+            result = analyze_recording(upload, self.camera_id, 0.45)
+        self.assertFalse(result["fire_detected"])
+        self.assertIsNone(result["evidence_frame"])
 
     def test_analysis_persists_model_result_without_sending_alert(self):
         scan_id = uuid.uuid4()

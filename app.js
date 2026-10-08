@@ -94,17 +94,58 @@ function riskName(score) {
   return ["", "Low", "Minor", "Moderate", "High", "Critical"][score] || "Unknown";
 }
 
+const STATUS_LABELS = { open: "Open", in_progress: "In progress", closed: "Closed" };
+
+function reportStatus(report) {
+  return STATUS_LABELS[report.status] ? report.status : "open";
+}
+
 function reportMarkup(report) {
   const site = siteById(report.siteId) || {};
   const employee = employeeById(report.employeeId) || {};
   const status = report.isSynced
     ? '<span class="sync-status synced"><span></span> Synced</span>'
     : '<span class="sync-status pending"><span></span> Awaiting sync</span>';
+  const currentStatus = reportStatus(report);
+  const statusOptions = Object.entries(STATUS_LABELS)
+    .map(([value, label]) => `<option value="${value}"${value === currentStatus ? " selected" : ""}>${label}</option>`)
+    .join("");
+  const evidence = report.evidenceFrame
+    ? `<button class="evidence-link" type="button" data-evidence="${escapeHtml(report.reportId)}">View detection frame</button>`
+    : "";
   return `<article class="report-row">
     <span class="report-risk risk-${report.riskScore}" title="Risk ${report.riskScore} of 5">${report.riskScore}</span>
-    <div class="report-details"><strong>${escapeHtml(report.description)}</strong><div class="report-meta"><span>${escapeHtml(report.siteName || site.name || "Unknown facility")}</span><span class="meta-separator">·</span><span>${escapeHtml(report.employeeName || employee.name || "Unknown reporter")}</span><span class="meta-separator">·</span><time datetime="${escapeHtml(report.localTimestamp)}">${formatDate(report.localTimestamp)}</time></div></div>
+    <div class="report-details"><strong>${escapeHtml(report.description)}</strong><div class="report-meta"><span>${escapeHtml(report.siteName || site.name || "Unknown facility")}</span><span class="meta-separator">·</span><span>${escapeHtml(report.employeeName || employee.name || "Unknown reporter")}</span><span class="meta-separator">·</span><time datetime="${escapeHtml(report.localTimestamp)}">${formatDate(report.localTimestamp)}</time></div>
+    <div class="report-actions"><label class="status-control status-${currentStatus}"><span>Status</span><select data-status-for="${escapeHtml(report.reportId)}" aria-label="Hazard status">${statusOptions}</select></label>${evidence}</div></div>
     <span class="risk-tag risk-tag-${report.riskScore}">${riskName(report.riskScore)}</span>${status}
   </article>`;
+}
+
+function renderDashboard(reports) {
+  const statusCounts = { open: 0, in_progress: 0, closed: 0 };
+  const riskCounts = [0, 0, 0, 0, 0];
+  reports.forEach((report) => {
+    statusCounts[reportStatus(report)] += 1;
+    if (report.riskScore >= 1 && report.riskScore <= 5) riskCounts[report.riskScore - 1] += 1;
+  });
+  const total = reports.length;
+  const bar = (label, count, cssClass) => `<div class="bar-row"><span class="bar-label">${label}</span><span class="bar-track"><span class="bar-fill ${cssClass}" style="width:${total ? Math.round((count / total) * 100) : 0}%"></span></span><strong class="bar-count">${count}</strong></div>`;
+  $("#status-chart").innerHTML = Object.entries(STATUS_LABELS).map(([key, label]) => bar(label, statusCounts[key], `status-fill-${key}`)).join("");
+  $("#risk-chart").innerHTML = riskCounts.map((count, index) => bar(`${index + 1} · ${riskName(index + 1)}`, count, `risk-fill-${index + 1}`)).join("");
+
+  const days = [];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - offset);
+    days.push({ key: day.toDateString(), label: new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(day), count: 0 });
+  }
+  reports.forEach((report) => {
+    const match = days.find((day) => day.key === new Date(report.localTimestamp).toDateString());
+    if (match) match.count += 1;
+  });
+  const peak = Math.max(1, ...days.map((day) => day.count));
+  $("#trend-chart").innerHTML = days.map((day) => `<div class="trend-col"><strong>${day.count}</strong><span class="trend-bar"><span style="height:${Math.round((day.count / peak) * 100)}%"></span></span><small>${day.label}</small></div>`).join("");
 }
 
 function renderReports(reports) {
@@ -126,9 +167,12 @@ function renderReports(reports) {
   const search = ($("#report-search")?.value || "").trim().toLowerCase();
   const riskFilter = $("#risk-filter")?.value || "all";
   const syncFilter = $("#sync-filter")?.value || "all";
+  const statusFilter = $("#status-filter")?.value || "all";
+  renderDashboard(reports);
   const filtered = reports.filter((report) => {
     const searchable = `${report.description} ${report.area || ""} ${report.siteName || siteById(report.siteId)?.name || ""} ${report.employeeName || employeeById(report.employeeId)?.name || ""}`.toLowerCase();
     return (!search || searchable.includes(search))
+      && (statusFilter === "all" || reportStatus(report) === statusFilter)
       && (riskFilter === "all" || (riskFilter === "high" ? report.riskScore >= 4 : report.riskScore <= 3))
       && (syncFilter === "all" || (syncFilter === "pending" ? !report.isSynced : report.isSynced));
   });
@@ -287,6 +331,7 @@ function resetVisionReview() {
   $("#vision-result").hidden = true;
   $("#vision-alert-review").hidden = true;
   $("#vision-no-fire").hidden = true;
+  $("#vision-evidence").hidden = true;
   $("#play-voice-prompt").hidden = true;
   $("#operator-confirm").checked = false;
   $("#send-vision-alert").disabled = true;
@@ -312,6 +357,8 @@ function showVisionAnalysis(result) {
   ].join("");
   $("#vision-alert-review").hidden = !result.fire_detected;
   $("#vision-no-fire").hidden = result.fire_detected;
+  $("#vision-evidence").hidden = !result.evidence_frame;
+  if (result.evidence_frame) $("#vision-evidence-image").src = result.evidence_frame;
   $("#operator-confirm").checked = false;
   $("#send-vision-alert").disabled = true;
   $("#play-voice-prompt").hidden = true;
@@ -392,6 +439,14 @@ async function sendVisionAlert() {
   }
 }
 
+let pendingReportEvidence = "";
+
+function setReportEvidence(dataUrl) {
+  pendingReportEvidence = dataUrl;
+  $("#report-evidence").hidden = !dataUrl;
+  if (dataUrl) $("#report-evidence-image").src = dataUrl;
+}
+
 function logVisionAsReport() {
   if (!visionAnalysis) return;
   const camera = visionCameras.find((item) => item.camera_id === visionAnalysis.camera_id);
@@ -405,6 +460,7 @@ function logVisionAsReport() {
   $("#description").setCustomValidity("");
   $("#character-count").textContent = `${$("#description").value.length} / 2000`;
   $("#area").value = zone.slice(0, 120);
+  setReportEvidence(visionAnalysis.evidence_frame || "");
   const riskValue = visionAnalysis.fire_detected ? (visionAnalysis.personnel_count > 0 ? "5" : "4") : null;
   document.querySelectorAll('input[name="risk"]').forEach((input) => {
     input.checked = input.value === riskValue;
@@ -445,6 +501,42 @@ function navigate(view) {
   }
 }
 
+async function exportReportsCsv() {
+  const reports = await getReports();
+  if (!reports.length) {
+    showToast("There are no reports to export yet.", "error");
+    return;
+  }
+  const cell = (value) => {
+    let text = String(value ?? "");
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const header = ["Report ID", "Date", "Facility", "Reporter", "Risk", "Status", "Synced", "Has detection frame", "Description"];
+  const rows = reports
+    .sort((a, b) => new Date(b.localTimestamp) - new Date(a.localTimestamp))
+    .map((report) => [
+      report.reportId,
+      report.localTimestamp,
+      report.siteName || siteById(report.siteId)?.name || "",
+      report.employeeName || employeeById(report.employeeId)?.name || "",
+      `${report.riskScore} ${riskName(report.riskScore)}`,
+      STATUS_LABELS[reportStatus(report)],
+      report.isSynced ? "Yes" : "No",
+      report.evidenceFrame ? "Yes" : "No",
+      report.description,
+    ]);
+  const csv = [header, ...rows].map((row) => row.map(cell).join(",")).join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `fieldsafe-hazards-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  showToast(`Exported ${reports.length} ${reports.length === 1 ? "report" : "reports"}.`);
+}
+
 async function syncPendingReports() {
   const pending = (await getReports()).filter((report) => !report.isSynced);
   if (!pending.length) {
@@ -465,13 +557,15 @@ async function syncPendingReports() {
   try {
     const payload = {
         device_id: await getDeviceId(),
-        reports: pending.map(({ reportId, employeeId, siteId, description, riskScore, localTimestamp }) => ({
+        reports: pending.map(({ reportId, employeeId, siteId, description, riskScore, localTimestamp, status, evidenceFrame }) => ({
           report_id: reportId,
           employee_id: employeeId,
           site_id: siteId,
           description,
           risk_score: riskScore,
           local_timestamp: localTimestamp,
+          status: STATUS_LABELS[status] ? status : "open",
+          ...(evidenceFrame ? { evidence_frame: evidenceFrame } : {}),
         })),
       };
     const response = await authorizedApiFetch("/hazards/sync/", {
@@ -591,12 +685,15 @@ function registerEvents() {
       area: String(form.get("area") || "").trim(),
       description: description + (String(form.get("area") || "").trim() ? ` — Area: ${String(form.get("area")).trim()}` : ""),
       riskScore: Number(form.get("risk")),
+      status: "open",
+      evidenceFrame: pendingReportEvidence,
       localTimestamp: new Date().toISOString(),
       isSynced: false,
     };
     try {
       await saveReport(report);
       reportForm.reset();
+      setReportEvidence("");
       $("#site").value = settings.siteId;
       $("#character-count").textContent = "0 / 2000";
       await refreshReports();
@@ -648,6 +745,26 @@ function registerEvents() {
   $("#report-search").addEventListener("input", refreshReports);
   $("#risk-filter").addEventListener("change", refreshReports);
   $("#sync-filter").addEventListener("change", refreshReports);
+  $("#status-filter").addEventListener("change", refreshReports);
+  $("#remove-evidence").addEventListener("click", () => setReportEvidence(""));
+  $("#export-reports").addEventListener("click", exportReportsCsv);
+  document.addEventListener("change", async (event) => {
+    const select = event.target.closest?.("select[data-status-for]");
+    if (!select) return;
+    const report = (await getReports()).find((item) => item.reportId === select.dataset.statusFor);
+    if (!report || !STATUS_LABELS[select.value]) return;
+    await saveReport({ ...report, status: select.value, isSynced: false });
+    await refreshReports();
+    showToast(`Marked ${STATUS_LABELS[select.value].toLowerCase()}. Sync to share the update.`);
+  });
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest?.("button[data-evidence]");
+    if (!button) return;
+    const report = (await getReports()).find((item) => item.reportId === button.dataset.evidence);
+    if (!report?.evidenceFrame) return;
+    $("#evidence-dialog-image").src = report.evidenceFrame;
+    $("#evidence-dialog").showModal();
+  });
   window.addEventListener("online", async () => {
     updateConnection();
     if (settings.apiUrl) await syncPendingReports();

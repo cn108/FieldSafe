@@ -1,4 +1,4 @@
-const CACHE_NAME = "fieldsafe-shell-v6";
+const CACHE_NAME = "fieldsafe-shell-v7";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg", "./floorplan.json"];
 
 self.addEventListener("install", (event) => {

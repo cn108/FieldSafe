@@ -1,3 +1,4 @@
+import base64
 import importlib.util
 import logging
 import os
@@ -111,6 +112,28 @@ def _normalized_class_names(names):
     return {str(name).strip().lower() for name in names}
 
 
+def _annotate_frame(cv2, frame, fire_boxes, person_boxes):
+    annotated = frame.copy()
+    height, width = annotated.shape[:2]
+    thickness = max(2, round(width / 400))
+    scale = max(0.5, width / 1400)
+    for color, detections in (((40, 40, 230), fire_boxes), ((80, 190, 60), person_boxes)):
+        for label, score, (x1, y1, x2, y2) in detections:
+            top_left, bottom_right = (int(x1), int(y1)), (int(x2), int(y2))
+            cv2.rectangle(annotated, top_left, bottom_right, color, thickness)
+            text = f"{label} {score * 100:.0f}%"
+            (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+            label_top = max(int(y1) - text_height - baseline - 4, 0)
+            cv2.rectangle(annotated, (int(x1), label_top), (int(x1) + text_width + 6, label_top + text_height + baseline + 4), color, -1)
+            cv2.putText(annotated, text, (int(x1) + 3, label_top + text_height + 1), cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 1, cv2.LINE_AA)
+    if width > 960:
+        annotated = cv2.resize(annotated, (960, round(height * 960 / width)), interpolation=cv2.INTER_AREA)
+    encoded, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 78])
+    if not encoded:
+        return None
+    return "data:image/jpeg;base64," + base64.b64encode(buffer.tobytes()).decode("ascii")
+
+
 def analyze_recording(uploaded_file, camera_id, confidence):
     status = model_status()
     if not status["ready"]:
@@ -156,6 +179,7 @@ def analyze_recording(uploaded_file, camera_id, confidence):
     positive_frames = 0
     maximum_personnel = 0
     maximum_fire_confidence = 0.0
+    evidence_frame = None
     fire_class_names = set(status["fire_class_names"])
     person_class_name = status["person_class_name"]
     maximum_frames = status["maximum_sampled_frames"]
@@ -195,28 +219,37 @@ def analyze_recording(uploaded_file, camera_id, confidence):
                     names = result.names
                     class_ids = result.boxes.cls.tolist()
                     confidences = result.boxes.conf.tolist()
+                    coordinates = result.boxes.xyxy.tolist()
                     frame_has_fire = False
-                    frame_personnel = 0
-                    for class_id, score in zip(class_ids, confidences):
+                    frame_fire_score = 0.0
+                    fire_boxes = []
+                    person_boxes = []
+                    for class_id, score, box in zip(class_ids, confidences, coordinates):
                         class_name = names[int(class_id)].strip().lower()
                         if class_name in fire_class_names:
                             frame_has_fire = True
-                            maximum_fire_confidence = max(maximum_fire_confidence, float(score))
+                            frame_fire_score = max(frame_fire_score, float(score))
+                            fire_boxes.append((class_name, float(score), box))
                         elif person_model is None and class_name == person_class_name:
-                            frame_personnel += 1
+                            person_boxes.append((class_name, float(score), box))
                     if frame_has_fire and person_model is not None:
                         with _MODEL_LOCK:
-                            person_results = person_model.predict(source=frame, conf=confidence, classes=None, verbose=False)
+                            person_results = person_model.predict(source=frame, conf=confidence, verbose=False)
                         if person_results and person_results[0].boxes is not None:
                             person_names = person_results[0].names
-                            frame_personnel = sum(
-                                1
-                                for class_id in person_results[0].boxes.cls.tolist()
-                                if person_names[int(class_id)].strip().lower() == person_class_name
-                            )
+                            for class_id, score, box in zip(
+                                person_results[0].boxes.cls.tolist(),
+                                person_results[0].boxes.conf.tolist(),
+                                person_results[0].boxes.xyxy.tolist(),
+                            ):
+                                if person_names[int(class_id)].strip().lower() == person_class_name:
+                                    person_boxes.append((person_class_name, float(score), box))
                     if frame_has_fire:
                         positive_frames += 1
-                        maximum_personnel = max(maximum_personnel, frame_personnel)
+                        maximum_personnel = max(maximum_personnel, len(person_boxes))
+                        if frame_fire_score >= maximum_fire_confidence:
+                            maximum_fire_confidence = frame_fire_score
+                            evidence_frame = _annotate_frame(cv2, frame, fire_boxes, person_boxes)
                 sampled_frames += 1
         finally:
             capture.release()
@@ -236,4 +269,5 @@ def analyze_recording(uploaded_file, camera_id, confidence):
         "fire_positive_frames": positive_frames,
         "duration_seconds": round(duration_seconds, 2),
         "sample_interval_seconds": 1,
+        "evidence_frame": evidence_frame,
     }

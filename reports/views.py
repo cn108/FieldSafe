@@ -1,58 +1,3 @@
-from django.db import transaction
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from .models import Employee, HazardReport, Site
-from .serializers import EmployeeSerializer, SiteSerializer, SyncRequestSerializer
-
-
-class SiteListView(generics.ListAPIView):
-    queryset = Site.objects.all()
-    serializer_class = SiteSerializer
-
-
-class EmployeeListView(generics.ListAPIView):
-    serializer_class = EmployeeSerializer
-
-    def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Employee.objects.all()
-        return Employee.objects.filter(user=self.request.user)
-
-
-class HazardSyncView(APIView):
-    def post(self, request):
-        batch = SyncRequestSerializer(data=request.data, context={"request": request})
-        batch.is_valid(raise_exception=True)
-        synced_ids = []
-        created_count = 0
-        updated_count = 0
-
-        with transaction.atomic():
-            for report in batch.validated_data["reports"]:
-                _, created = HazardReport.objects.update_or_create(
-                    report_id=report["report_id"],
-                    defaults={
-                        "employee": report["employee"],
-                        "site": report["site"],
-                        "description": report["description"],
-                        "risk_score": report["risk_score"],
-                        "created_at": report["created_at"],
-                    },
-                )
-                created_count += int(created)
-                updated_count += int(not created)
-                synced_ids.append(str(report["report_id"]))
-
-        return Response(
-            {
-                "synced_report_ids": synced_ids,
-                "created": created_count,
-                "updated": updated_count,
-            },
-            status=status.HTTP_200_OK,
-        )
 import logging
 from uuid import UUID
 
@@ -63,7 +8,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Employee, HazardReport, VisionAlert, VisionScan
+from .models import Employee, HazardReport, Site, VisionAlert, VisionScan
 from .serializers import (
     EmployeeSerializer,
     SiteSerializer,
@@ -107,15 +52,19 @@ class HazardSyncView(APIView):
 
         with transaction.atomic():
             for report in batch.validated_data["reports"]:
+                defaults = {
+                    "employee": report["employee"],
+                    "site": report["site"],
+                    "description": report["description"],
+                    "risk_score": report["risk_score"],
+                    "created_at": report["created_at"],
+                }
+                for optional_field in ("status", "evidence_frame"):
+                    if optional_field in report:
+                        defaults[optional_field] = report[optional_field]
                 _, created = HazardReport.objects.update_or_create(
                     report_id=report["report_id"],
-                    defaults={
-                        "employee": report["employee"],
-                        "site": report["site"],
-                        "description": report["description"],
-                        "risk_score": report["risk_score"],
-                        "created_at": report["created_at"],
-                    },
+                    defaults=defaults,
                 )
                 created_count += int(created)
                 updated_count += int(not created)

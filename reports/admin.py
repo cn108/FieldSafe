@@ -19,8 +19,8 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(HazardReport)
 class HazardReportAdmin(admin.ModelAdmin):
-    list_display = ("report_id", "site", "employee", "risk_score", "created_at", "received_at")
-    list_filter = ("risk_score", "site", "created_at")
+    list_display = ("report_id", "site", "employee", "risk_score", "status", "created_at", "received_at")
+    list_filter = ("status", "risk_score", "site", "created_at")
     search_fields = ("description", "site__facility_name", "employee__full_name")
     readonly_fields = ("report_id", "received_at")
 

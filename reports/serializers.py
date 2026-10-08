@@ -3,6 +3,8 @@ from django.utils import timezone
 
 from .models import Employee, HazardReport, Site
 
+EVIDENCE_FRAME_MAX_LENGTH = 400_000
+
 
 class VisionVideoAnalyzeSerializer(serializers.Serializer):
     video = serializers.FileField()
@@ -61,6 +63,12 @@ class HazardReportSyncSerializer(serializers.ModelSerializer):
         queryset=Site.objects.all(),
     )
     local_timestamp = TimezoneAwareDateTimeField(source="created_at")
+    status = serializers.ChoiceField(choices=HazardReport.Status.choices, required=False)
+    evidence_frame = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=EVIDENCE_FRAME_MAX_LENGTH,
+    )
 
     class Meta:
         model = HazardReport
@@ -71,7 +79,14 @@ class HazardReportSyncSerializer(serializers.ModelSerializer):
             "description",
             "risk_score",
             "local_timestamp",
+            "status",
+            "evidence_frame",
         )
+
+    def validate_evidence_frame(self, value):
+        if value and not value.startswith("data:image/jpeg;base64,"):
+            raise serializers.ValidationError("Evidence must be an embedded JPEG image.")
+        return value
 
     def validate_description(self, value):
         if not value.strip():

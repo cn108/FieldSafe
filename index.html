@@ -11,8 +11,8 @@
     <title>FieldSafe — HSE reporting</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=smart-rig-1" />
-    <script src="./app.js?v=smart-rig-3" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=insights-1" />
+    <script src="./app.js?v=insights-1" type="module"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -110,6 +110,15 @@
             </article>
           </div>
 
+          <div class="section-heading insight-heading">
+            <div><h2>Safety dashboard</h2><p>Follow-up progress, risk mix and recent activity</p></div>
+          </div>
+          <div class="insight-grid">
+            <section class="panel insight-card" aria-labelledby="insight-status-title"><h3 id="insight-status-title">Hazard status</h3><div class="bar-list" id="status-chart"></div></section>
+            <section class="panel insight-card" aria-labelledby="insight-risk-title"><h3 id="insight-risk-title">Risk levels</h3><div class="bar-list" id="risk-chart"></div></section>
+            <section class="panel insight-card" aria-labelledby="insight-trend-title"><h3 id="insight-trend-title">Last 7 days</h3><div class="trend-chart" id="trend-chart" role="img" aria-label="Reports logged per day over the last seven days"></div></section>
+          </div>
+
           <div class="content-grid">
             <section class="panel recent-panel">
               <div class="panel-heading"><div><h2>Recent reports</h2><p>Latest observations from your team</p></div><a class="text-link" href="#reports" data-go="reports">View all <span aria-hidden="true">→</span></a></div>
@@ -139,6 +148,10 @@
               <label class="field-label" for="description">Description <span class="required-mark">*</span></label>
               <textarea id="description" name="description" maxlength="2000" placeholder="Describe the unsafe condition or near miss. What happened, and exactly where?" required></textarea>
               <div class="field-meta"><span>Include enough detail to help your team respond.</span><span id="character-count">0 / 2000</span></div>
+              <figure class="evidence-preview" id="report-evidence" hidden>
+                <img id="report-evidence-image" alt="Annotated detection frame from Smart Rig AI" />
+                <figcaption><span>Annotated frame from Smart Rig AI will be attached to this report.</span><button type="button" class="text-link" id="remove-evidence">Remove</button></figcaption>
+              </figure>
 
               <div class="form-divider"></div>
               <div class="form-section-title"><span class="step-number">02</span><div><h2>Where did it happen?</h2><p>Pinpoint the facility so the right team can follow up.</p></div></div>
@@ -175,7 +188,7 @@
             <button class="primary-button" data-go="new-report" type="button"><span aria-hidden="true">＋</span> Log a hazard</button>
           </div>
           <section class="panel all-reports-panel">
-            <div class="report-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="report-search" type="search" placeholder="Search reports…" aria-label="Search reports" /></label><label class="filter-label">Risk <select id="risk-filter"><option value="all">All levels</option><option value="high">High &amp; critical</option><option value="low">Low to moderate</option></select></label><label class="filter-label">Sync <select id="sync-filter"><option value="all">All reports</option><option value="pending">Awaiting sync</option><option value="synced">Synced</option></select></label></div>
+            <div class="report-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="report-search" type="search" placeholder="Search reports…" aria-label="Search reports" /></label><label class="filter-label">Risk <select id="risk-filter"><option value="all">All levels</option><option value="high">High &amp; critical</option><option value="low">Low to moderate</option></select></label><label class="filter-label">Sync <select id="sync-filter"><option value="all">All reports</option><option value="pending">Awaiting sync</option><option value="synced">Synced</option></select></label><label class="filter-label">Status <select id="status-filter"><option value="all">All statuses</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="closed">Closed</option></select></label><button class="secondary-button" id="export-reports" type="button">Export CSV</button></div>
             <div class="report-list report-list-all" id="all-reports-list"></div>
           </section>
         </section>
@@ -268,6 +281,10 @@
               </div>
               <p class="voice-disclaimer">Voice is played on this device after operator confirmation. It is not broadcast to CCTV speakers, radios, or personnel.</p>
             </div>
+            <figure class="vision-evidence" id="vision-evidence" hidden>
+              <img id="vision-evidence-image" alt="Frame with the strongest fire detection, with boxes around detected fire and people" />
+              <figcaption><span class="legend fire-legend"></span> Fire <span class="legend person-legend"></span> Person · Highest-scoring fire frame. Boxes are model output, not verified.</figcaption>
+            </figure>
             <div class="vision-log-row">
               <button class="secondary-button" id="log-vision-report" type="button"><span aria-hidden="true">＋</span> Log as hazard report</button>
               <small>Prefills a hazard report with this analysis. You review and save it.</small>
@@ -279,6 +296,10 @@
       </main>
     </div>
 
+    <dialog class="evidence-dialog" id="evidence-dialog" aria-label="Annotated detection frame">
+      <form method="dialog" class="dialog-close-form"><button class="dialog-close" aria-label="Close image">×</button></form>
+      <img id="evidence-dialog-image" alt="Annotated detection frame with boxes around detected fire and people" />
+    </dialog>
     <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
       <form method="dialog" class="dialog-close-form"><button class="dialog-close" aria-label="Close settings">×</button></form>
       <div class="eyebrow"><span class="eyebrow-mark"></span> YOUR DEVICE</div><h2 id="settings-title">Field settings</h2>

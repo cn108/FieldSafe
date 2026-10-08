@@ -92,4 +92,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 VISION_MODEL_PATH = os.environ.get("VISION_MODEL_PATH", "")
+# Synced reports can embed annotated JPEG evidence frames, so the JSON body limit is raised from 2.5 MB.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 VISION_PERSON_MODEL_PATH = os.environ.get("VISION_PERSON_MODEL_PATH", "")
