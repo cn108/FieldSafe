@@ -1,0 +1,18 @@
+{
+  "facilities": [
+    {
+      "camera_id": "CAM-04",
+      "zone_name": "Sector 3 - Generator Room",
+      "site_id": "7b0b0e6c-cf30-4d30-94bb-1e60b8323a01",
+      "primary_exit": "North Stairwell",
+      "secondary_exit": "East Blast Door"
+    },
+    {
+      "camera_id": "CAM-02",
+      "zone_name": "Pump Deck - Transfer Line",
+      "site_id": "7b0b0e6c-cf30-4d30-94bb-1e60b8323a02",
+      "primary_exit": "West Muster Route",
+      "secondary_exit": "South Access Stair"
+    }
+  ]
+}

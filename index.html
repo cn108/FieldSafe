@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#102b24" />
+    <meta
+      name="description"
+      content="Offline-first safety reporting for field teams."
+    />
+    <title>FieldSafe — HSE reporting</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css?v=smart-rig-1" />
+    <script src="./app.js?v=smart-rig-3" type="module"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#overview" aria-label="FieldSafe home">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <span class="brand-copy"><strong>FieldSafe</strong><small>HSE FIELD REPORTER</small></span>
+        </a>
+
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="nav-list">
+          <a class="nav-link active" href="#overview" data-view="overview">
+            <span class="nav-icon" aria-hidden="true">◫</span> Overview
+          </a>
+          <a class="nav-link" href="#reports" data-view="reports">
+            <span class="nav-icon" aria-hidden="true">▤</span> Hazard reports
+            <span class="nav-count" id="nav-pending">0</span>
+          </a>
+          <a class="nav-link" href="#new-report" data-view="new-report">
+            <span class="nav-icon" aria-hidden="true">＋</span> Log a hazard
+          </a>
+          <a class="nav-link" href="#smart-rig" data-view="smart-rig">
+            <span class="nav-icon" aria-hidden="true">◉</span> Smart Rig AI
+          </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="offline-card">
+            <span class="live-dot" id="connection-dot"></span>
+            <div>
+              <strong id="connection-label">Checking connection</strong>
+              <small id="sync-label">Your reports stay on this device</small>
+            </div>
+          </div>
+          <button class="profile-button" id="open-settings" type="button">
+            <span class="avatar" id="profile-avatar">FT</span>
+            <span class="profile-copy"><strong id="profile-name">Field team</strong><small id="profile-site">Bonny Island Terminal</small></span>
+            <span class="profile-menu" aria-hidden="true">···</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>Field operations</span><span aria-hidden="true">/</span><strong id="page-crumb">Overview</strong></div>
+          <div class="topbar-actions">
+            <span class="connection-pill" id="top-connection"><span class="live-dot"></span><span>Online</span></span>
+            <button class="icon-button" id="install-app" type="button" aria-label="Install app" hidden>↓</button>
+            <button class="sync-button" id="sync-now" type="button"><span aria-hidden="true">↻</span> Sync reports <span class="sync-count" id="sync-count">0</span></button>
+          </div>
+        </header>
+
+        <section class="view active-view" id="view-overview" aria-labelledby="welcome-title">
+          <div class="welcome-row">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-mark"></span> YOUR SAFETY WORKSPACE</div>
+              <h1 id="welcome-title">Good morning, field team.</h1>
+              <p class="welcome-subtitle">Every observation brings us closer to zero harm.</p>
+            </div>
+            <button class="primary-button" data-go="new-report" type="button"><span aria-hidden="true">＋</span> Log a hazard</button>
+          </div>
+
+          <div class="site-banner">
+            <div class="site-emblem" aria-hidden="true"><span>◎</span></div>
+            <div class="site-copy"><span class="site-kicker">CURRENT FACILITY</span><strong id="banner-site">Bonny Island Terminal</strong></div>
+            <span class="site-region" id="banner-region">ONshore · NIGER DELTA</span>
+            <span class="banner-divider"></span>
+            <div class="site-meta"><span>LOCAL-FIRST MODE</span><strong><span class="mini-dot"></span> Ready to report, even offline</strong></div>
+          </div>
+
+          <div class="section-heading">
+            <div><h2>At a glance</h2><p>Your team's safety activity</p></div>
+            <span class="period-label"><span aria-hidden="true">◷</span> Today, <span id="today-date"></span></span>
+          </div>
+          <div class="stat-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon green" aria-hidden="true">▤</span><span class="stat-caption">ALL TIME</span></div>
+              <strong class="stat-value" id="stat-total">0</strong><span class="stat-label">Hazards reported</span>
+              <span class="stat-footnote">Across your field activity</span>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon amber" aria-hidden="true">◷</span><span class="stat-caption">AWAITING SYNC</span></div>
+              <strong class="stat-value" id="stat-pending">0</strong><span class="stat-label">Saved on this device</span>
+              <span class="stat-footnote">Safe here until connection returns</span>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon blue" aria-hidden="true">✓</span><span class="stat-caption">TODAY</span></div>
+              <strong class="stat-value" id="stat-today">0</strong><span class="stat-label">Logged this shift</span>
+              <span class="stat-footnote">Keep looking out for one another</span>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon red" aria-hidden="true">!</span><span class="stat-caption">HIGH RISK</span></div>
+              <strong class="stat-value" id="stat-high">0</strong><span class="stat-label">Needs attention</span>
+              <span class="stat-footnote">Reports rated 4 or 5</span>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <section class="panel recent-panel">
+              <div class="panel-heading"><div><h2>Recent reports</h2><p>Latest observations from your team</p></div><a class="text-link" href="#reports" data-go="reports">View all <span aria-hidden="true">→</span></a></div>
+              <div id="recent-list" class="report-list"></div>
+            </section>
+            <aside class="panel goal-card">
+              <div class="goal-overline"><span class="goal-icon" aria-hidden="true">✳</span> THE GOAL ZERO COMMITMENT</div>
+              <h2>See it.<br />Own it.<br /><em>Report it.</em></h2>
+              <p>A small observation today can prevent a serious incident tomorrow. Your voice makes this site safer for everyone.</p>
+              <div class="goal-footer"><span class="goal-line"></span><span>LOOK OUT FOR EACH OTHER</span></div>
+              <span class="goal-watermark" aria-hidden="true">0</span>
+            </aside>
+          </div>
+          <footer class="page-footer"><span>FIELDSAFE <span aria-hidden="true">·</span> OFFLINE-FIRST SAFETY REPORTING</span><span>Built for the field. Designed for zero harm.</span></footer>
+        </section>
+
+        <section class="view" id="view-new-report" aria-labelledby="form-title" hidden>
+          <div class="form-page-header">
+            <a class="back-link" href="#overview" data-go="overview"><span aria-hidden="true">←</span> Back to overview</a>
+            <div class="eyebrow"><span class="eyebrow-mark"></span> FIELD OBSERVATION</div>
+            <h1 id="form-title">Log a hazard</h1>
+            <p class="welcome-subtitle">Capture what you saw. Your report is saved on this device first.</p>
+          </div>
+          <div class="form-layout">
+            <form class="panel report-form" id="report-form">
+              <div class="form-section-title"><span class="step-number">01</span><div><h2>What did you observe?</h2><p>Be clear and specific. Include the equipment or area if relevant.</p></div></div>
+              <label class="field-label" for="description">Description <span class="required-mark">*</span></label>
+              <textarea id="description" name="description" maxlength="2000" placeholder="Describe the unsafe condition or near miss. What happened, and exactly where?" required></textarea>
+              <div class="field-meta"><span>Include enough detail to help your team respond.</span><span id="character-count">0 / 2000</span></div>
+
+              <div class="form-divider"></div>
+              <div class="form-section-title"><span class="step-number">02</span><div><h2>Where did it happen?</h2><p>Pinpoint the facility so the right team can follow up.</p></div></div>
+              <div class="field-row">
+                <div class="field-group"><label class="field-label" for="site">Facility <span class="required-mark">*</span></label><select id="site" name="site" required></select></div>
+                <div class="field-group"><label class="field-label" for="area">Area or equipment <span class="optional-mark">OPTIONAL</span></label><input id="area" name="area" maxlength="120" placeholder="e.g. Pump P-302" /></div>
+              </div>
+
+              <div class="form-divider"></div>
+              <div class="form-section-title"><span class="step-number">03</span><div><h2>Assess the risk</h2><p>Choose the potential severity if the hazard is not addressed.</p></div></div>
+              <fieldset class="risk-fieldset">
+                <legend class="field-label">Risk severity <span class="required-mark">*</span></legend>
+                <div class="risk-options">
+                  <label class="risk-option"><input type="radio" name="risk" value="1" required /><span class="risk-choice"><strong>1</strong><small>Low</small></span></label>
+                  <label class="risk-option"><input type="radio" name="risk" value="2" /><span class="risk-choice"><strong>2</strong><small>Minor</small></span></label>
+                  <label class="risk-option"><input type="radio" name="risk" value="3" /><span class="risk-choice"><strong>3</strong><small>Moderate</small></span></label>
+                  <label class="risk-option"><input type="radio" name="risk" value="4" /><span class="risk-choice"><strong>4</strong><small>High</small></span></label>
+                  <label class="risk-option"><input type="radio" name="risk" value="5" /><span class="risk-choice"><strong>5</strong><small>Critical</small></span></label>
+                </div>
+              </fieldset>
+              <div class="form-notice"><span class="notice-icon" aria-hidden="true">↳</span><span><strong>Saved locally first.</strong> Your report is stored on this device and can be synced when you have a connection.</span></div>
+              <div class="form-actions"><a class="cancel-link" href="#overview" data-go="overview">Cancel</a><button class="primary-button" type="submit"><span aria-hidden="true">＋</span> Save hazard report</button></div>
+            </form>
+            <aside class="form-aside">
+              <div class="aside-note"><span class="aside-note-icon" aria-hidden="true">✳</span><h3>Every report matters.</h3><p>Near misses are valuable too. Sharing them helps us fix risks before someone gets hurt.</p></div>
+              <div class="aside-tip"><span class="tip-label">A GOOD REPORT INCLUDES</span><ul><li><span>✓</span> What you observed</li><li><span>✓</span> Where it happened</li><li><span>✓</span> The potential impact</li></ul></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-reports" aria-labelledby="reports-title" hidden>
+          <div class="welcome-row report-heading">
+            <div><div class="eyebrow"><span class="eyebrow-mark"></span> FIELD ACTIVITY</div><h1 id="reports-title">Hazard reports</h1><p class="welcome-subtitle">A record of observations from this device.</p></div>
+            <button class="primary-button" data-go="new-report" type="button"><span aria-hidden="true">＋</span> Log a hazard</button>
+          </div>
+          <section class="panel all-reports-panel">
+            <div class="report-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="report-search" type="search" placeholder="Search reports…" aria-label="Search reports" /></label><label class="filter-label">Risk <select id="risk-filter"><option value="all">All levels</option><option value="high">High &amp; critical</option><option value="low">Low to moderate</option></select></label><label class="filter-label">Sync <select id="sync-filter"><option value="all">All reports</option><option value="pending">Awaiting sync</option><option value="synced">Synced</option></select></label></div>
+            <div class="report-list report-list-all" id="all-reports-list"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-smart-rig" aria-labelledby="vision-title" hidden>
+          <div class="vision-page-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-mark"></span> COMPUTER VISION · SIMULATION</div>
+              <h1 id="vision-title">Smart Rig AI</h1>
+              <p class="welcome-subtitle">Review a recorded camera clip for possible fire and people, then verify before raising an alert.</p>
+            </div>
+            <span class="vision-mode-pill"><span></span> HUMAN-REVIEW MODE</span>
+          </div>
+
+          <div class="vision-safety-banner" role="note">
+            <span class="safety-banner-icon" aria-hidden="true">!</span>
+            <p><strong>Prototype only — not an emergency system.</strong> This demo analyzes uploaded recordings; it does not monitor live CCTV or contact emergency services. AI can miss hazards or raise false alarms. Follow site procedures, verify conditions in person, and never rely on this screen to choose a safe exit.</p>
+          </div>
+
+          <div class="vision-grid">
+            <section class="panel vision-form-panel">
+              <div class="panel-heading">
+                <div><h2>Analyze a recorded clip</h2><p>Video is processed by the configured backend and not retained.</p></div>
+                <span class="vision-step-badge">01</span>
+              </div>
+              <form id="vision-form" class="vision-form">
+                <label class="field-label" for="vision-camera">Camera / zone <span class="required-mark">*</span></label>
+                <select id="vision-camera" name="camera_id" required></select>
+                <div class="confidence-control">
+                  <label class="field-label" for="vision-confidence">Minimum model confidence <strong id="vision-confidence-value">45%</strong></label>
+                  <input id="vision-confidence" name="confidence" type="range" min="0.25" max="0.9" step="0.05" value="0.45" />
+                  <span class="confidence-help">This is a detection score threshold, not a calibrated probability of a fire.</span>
+                </div>
+                <div class="camera-routing-card" id="camera-routing-card">
+                  <span class="camera-routing-label">CONFIGURED ROUTES · VERIFY ON SITE</span>
+                  <div class="route-pair">
+                    <span><small>PRIMARY EXIT</small><strong id="route-primary">—</strong></span>
+                    <span><small>ALTERNATE EXIT</small><strong id="route-secondary">—</strong></span>
+                  </div>
+                </div>
+                <label class="field-label video-label" for="vision-video">Recorded video <span class="required-mark">*</span><span class="optional-mark">MP4, MOV, AVI OR MKV · UP TO 100 MB</span></label>
+                <label class="video-dropzone" for="vision-video" id="video-dropzone">
+                  <input id="vision-video" name="video" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv" required />
+                  <span class="upload-glyph" aria-hidden="true">↑</span>
+                  <strong id="video-filename">Choose a recording to analyze</strong>
+                  <small id="video-filemeta">Your video stays on the analysis server only for processing.</small>
+                </label>
+                <label class="secondary-button record-video-button" for="vision-record"><span aria-hidden="true">●</span> Record video with camera</label>
+                <input id="vision-record" type="file" accept="video/*" capture="environment" hidden />
+                <div class="vision-form-footer">
+                  <span class="local-processing-note"><span class="mini-dot"></span> No live feed · Operator initiated</span>
+                  <button class="primary-button" id="analyze-video" type="submit"><span aria-hidden="true">◉</span> Analyze recording</button>
+                </div>
+                <div id="vision-progress" class="vision-progress" hidden><span class="progress-spinner"></span><span id="vision-progress-label">Analyzing video frames…</span></div>
+              </form>
+            </section>
+
+            <aside class="panel vision-how-panel">
+              <div class="vision-side-icon" aria-hidden="true">⌁</div>
+              <span class="tip-label">HOW THE SIMULATION WORKS</span>
+              <ol class="vision-how-list">
+                <li><span>1</span><div><strong>Choose a camera zone</strong><small>Routes come from the floor-plan configuration.</small></div></li>
+                <li><span>2</span><div><strong>Upload a recording</strong><small>YOLO samples video frames for fire and people.</small></div></li>
+                <li><span>3</span><div><strong>Review and verify</strong><small>Only a confirmed operator can submit an alert.</small></div></li>
+              </ol>
+              <div class="vision-backend-status"><span class="live-dot is-offline" id="vision-backend-dot"></span><span id="vision-backend-label">Sign in and configure the analysis API in Field settings.</span></div>
+            </aside>
+          </div>
+
+          <section class="vision-result panel" id="vision-result" hidden aria-live="polite">
+            <div class="panel-heading">
+              <div><h2>Analysis review</h2><p>Model output only — check the recording and current site conditions.</p></div>
+              <span class="vision-result-chip" id="vision-result-status">REVIEW</span>
+            </div>
+            <div class="vision-result-summary">
+              <div class="vision-result-stat"><span>FIRE SIGNAL</span><strong id="result-fire">Not detected</strong><small id="result-confidence">Confidence —</small></div>
+              <div class="vision-result-stat"><span>PERSONNEL</span><strong id="result-personnel">—</strong><small>Maximum count in sampled fire-positive frame</small></div>
+              <div class="vision-result-stat"><span>VIDEO COVERAGE</span><strong id="result-frames">—</strong><small>Frames sampled · recording time</small></div>
+            </div>
+            <div class="vision-alert-review" id="vision-alert-review" hidden>
+              <div class="alert-review-heading"><span class="alert-pulse" aria-hidden="true">!</span><div><strong>Possible fire detected</strong><small>Confirm the signal and check live conditions before sending anything.</small></div></div>
+              <div class="route-confirm-fields">
+                <div><span class="route-review-label">ZONE</span><strong id="result-zone">—</strong></div>
+                <div><label class="route-review-label" for="result-exit">PROPOSED EXIT · VERIFY SAFE ON SITE</label><select id="result-exit"></select></div>
+              </div>
+              <label class="operator-confirm"><input id="operator-confirm" type="checkbox" /><span>I have reviewed this clip and verified the situation and proposed route against site procedures.</span></label>
+              <div class="alert-action-row">
+                <button class="primary-button alert-send-button" id="send-vision-alert" type="button" disabled>Confirm &amp; send alert to demo API</button>
+                <button class="voice-button" id="play-voice-prompt" type="button" hidden><span aria-hidden="true">◖</span> Play voice prompt</button>
+              </div>
+              <p class="voice-disclaimer">Voice is played on this device after operator confirmation. It is not broadcast to CCTV speakers, radios, or personnel.</p>
+            </div>
+            <div class="vision-log-row">
+              <button class="secondary-button" id="log-vision-report" type="button"><span aria-hidden="true">＋</span> Log as hazard report</button>
+              <small>Prefills a hazard report with this analysis. You review and save it.</small>
+            </div>
+            <div class="vision-no-fire" id="vision-no-fire" hidden><span aria-hidden="true">✓</span><p><strong>No fire-class detection in sampled frames.</strong> This does not mean the area is safe. Continue to follow site inspection and reporting procedures.</p></div>
+          </section>
+          <footer class="page-footer"><span>FIELDSAFE <span aria-hidden="true">·</span> DEMONSTRATION ONLY</span><span>Automated detection does not replace trained safety personnel.</span></footer>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="dialog-close-form"><button class="dialog-close" aria-label="Close settings">×</button></form>
+      <div class="eyebrow"><span class="eyebrow-mark"></span> YOUR DEVICE</div><h2 id="settings-title">Field settings</h2>
+      <p>Choose the person and facility for reports saved on this device.</p>
+      <form id="settings-form">
+        <label class="field-label" for="employee">Reporting as</label><select id="employee" name="employee"></select>
+        <label class="field-label settings-site-label" for="default-site">Default facility</label><select id="default-site" name="default-site"></select>
+        <label class="field-label settings-site-label" for="api-url">Sync API address <span class="optional-mark">OPTIONAL</span></label><input id="api-url" name="api-url" type="url" placeholder="http://127.0.0.1:8000/api/v1" />
+        <p class="settings-help">Without a server address, reports remain safely stored on this device.</p>
+        <label class="field-label settings-site-label" for="api-username">Server username</label><input id="api-username" name="username" autocomplete="username" placeholder="Username" />
+        <label class="field-label settings-site-label" for="api-password">Server password</label><input id="api-password" name="password" type="password" autocomplete="current-password" placeholder="Password" />
+        <div id="auth-status" class="auth-status">Not signed in. Sign in to enable report sync.</div>
+        <div class="auth-actions"><button class="primary-button settings-save" id="sign-in" type="button">Sign in to sync</button><button class="sign-out-button" id="sign-out" type="button" hidden>Sign out</button></div>
+        <button class="save-settings-button" type="submit">Save local settings</button>
+      </form>
+    </dialog>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "FieldSafe — HSE Field Reporter",
+  "short_name": "FieldSafe",
+  "description": "Offline-first safety reporting and computer-vision simulation for field teams.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#102b24",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
