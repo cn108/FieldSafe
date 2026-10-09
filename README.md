@@ -18,13 +18,14 @@ FieldSafe is an **offline-first hazard-reporting web app** for oil-and-gas field
 ## Contents
 
 1. [Quick start](#quick-start)
-2. [Using the app](#using-the-app)
-3. [Smart Rig AI setup](#smart-rig-ai-setup)
-4. [API reference](#api-reference)
-5. [Configuration](#configuration)
-6. [Testing and CI](#testing-and-ci)
-7. [Project layout](#project-layout)
-8. [Known limitations](#known-limitations)
+2. [Demo walkthrough](#demo-walkthrough-presenting-on-your-own-machine)
+3. [Using the app](#using-the-app)
+4. [Smart Rig AI setup](#smart-rig-ai-setup)
+5. [API reference](#api-reference)
+6. [Configuration](#configuration)
+7. [Testing and CI](#testing-and-ci)
+8. [Project layout](#project-layout)
+9. [Known limitations](#known-limitations)
 
 ---
 
@@ -66,6 +67,57 @@ Open <http://127.0.0.1:5500>.
 You should see "Signed in as …" and a "Connected" message. The app works without this step, but reports then stay on the device and Smart Rig AI is unavailable.
 
 > **Field accounts:** a non-admin account can only sync reports for its own employee. In the admin site (`http://127.0.0.1:8000/admin/`) create the user and link it to an `Employee` record. Superusers can sync for any employee.
+
+---
+
+## Demo walkthrough (presenting on your own machine)
+
+A step-by-step script for showing FieldSafe live, using the project folder and model files already on your computer.
+
+### Before the audience arrives
+
+1. **Open PowerShell in the project folder** and start the backend. If `models\fire.pt` and `models\yolov8n.pt` are present they load automatically, so no environment variables are needed:
+
+   ```powershell
+   cd "C:\Users\Chukwuka Nwabueze\ShellOG"
+   python manage.py runserver 127.0.0.1:8000
+   ```
+
+2. **Open a second PowerShell window** in the same folder and serve the web app:
+
+   ```powershell
+   python -m http.server 5500 --bind 127.0.0.1
+   ```
+
+3. **Open <http://127.0.0.1:5500>** in Chrome or Edge.
+4. **Connect and sign in.** Click the profile at the bottom of the sidebar, set **Sync API address** to `http://127.0.0.1:8000/api/v1`, enter your demo username and password, and click **Sign in to sync**. Wait for "Signed in as …" and "Connected".
+
+   > If you have no demo account yet, create one with `python manage.py createsuperuser`. Don't publish real passwords in this README.
+5. **Do a dry run.** Analyse your sample video once, so the AI models are already loaded and the first analysis on stage isn't slow.
+6. **Optional:** set the browser zoom to 110–125% and close other windows and notifications.
+
+### The demo script (about 5 minutes)
+
+1. **Overview** — show the dashboard: hazard counts, status, risk levels and the 7-day chart. *"Crews work in places with poor signal, so everything is saved on the device first."*
+2. **Log a hazard** — click **Log a hazard**, pick a category, risk level and facility, add a description, and save. Point out that it appears as **Saved on this device**.
+3. **Go offline (optional)** — turn on browser DevTools → Network → *Offline* (or turn off Wi-Fi), log another hazard, then turn the network back on. This shows the offline-first design.
+4. **Sync** — click **Sync reports**. The reports change to **Synced**. Syncing again doesn't create duplicates.
+5. **Smart Rig AI** — open **Smart Rig AI**, choose a camera zone, then either upload your sample video or click **Record video with camera**. Click **Analyze recording**.
+6. **Review the result** — show the fire signal and score, the person count, and the annotated frame with boxes. Stress that **a human must verify it**: tick the review box before any alert is sent. *"AI scores are not verified probabilities."*
+7. **Log as hazard report** — click it. The report is pre-filled with the analysis and the annotated frame attached. Review and save, then **Sync reports**.
+8. **Follow-up** — open **Hazard reports**, find the new report, open **View detection frame**, and change its status from **Open** to **In progress** to **Closed**. Click **Export CSV** to show the data leaving the app.
+9. **Back to Overview** — the dashboard now reflects the new reports and statuses.
+
+### If something goes wrong
+
+| Symptom | Fix |
+|---|---|
+| "Configure your API address and sign in" | Open Field settings, set the API address, and click **Sign in to sync** (**Save local settings** doesn't sign you in). |
+| "Username or password was not accepted" | Reset the password: `python manage.py changepassword <username>`. |
+| Smart Rig AI says the model isn't ready, or returns 503 | Check that `models\fire.pt` exists, restart `runserver`, then reload the page. |
+| Sync fails with 400 | A report has an invalid employee or facility. Re-select them in Field settings and save the report again. |
+| The page looks out of date | Hard-refresh with `Ctrl+F5`. |
+| Analysis is slow the first time | The AI models are loading. Do the dry run beforehand. |
 
 ---
 
