@@ -91,7 +91,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-VISION_MODEL_PATH = os.environ.get("VISION_MODEL_PATH", "")
+# Models dropped into models/ are picked up automatically; env vars override.
+def _default_model(filename):
+    candidate = BASE_DIR / "models" / filename
+    return str(candidate) if candidate.is_file() else ""
+
+
+VISION_MODEL_PATH = os.environ.get("VISION_MODEL_PATH") or _default_model("fire.pt")
 # Synced reports can embed annotated JPEG evidence frames, so the JSON body limit is raised from 2.5 MB.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
-VISION_PERSON_MODEL_PATH = os.environ.get("VISION_PERSON_MODEL_PATH", "")
+VISION_PERSON_MODEL_PATH = os.environ.get("VISION_PERSON_MODEL_PATH") or _default_model("yolov8n.pt")

@@ -127,7 +127,7 @@ If the model finds no fire, you can still log the clip as a hazard report, but n
 
 Smart Rig AI needs one or two YOLO models. Weights are **not** bundled or downloaded automatically, and the standard COCO `yolov8n.pt` model has no fire class, so it cannot detect fire on its own.
 
-Create a `models` folder (git-ignored) and set the paths before starting Django:
+Create a `models` folder (git-ignored). If it contains `fire.pt` (and optionally `yolov8n.pt`), they are picked up automatically, so a plain `python manage.py runserver` is enough. To use other paths, set them before starting Django:
 
 ```powershell
 $env:VISION_MODEL_PATH        = "models\fire.pt"        # a model with a fire / flame class
@@ -197,8 +197,8 @@ Set these as environment variables before `runserver`.
 | `DJANGO_DEBUG` | `false` for any real deployment | `true` |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated host names | local only |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Origins allowed to call the API | local dev origins |
-| `VISION_MODEL_PATH` | Fire model weights | unset (AI disabled) |
-| `VISION_PERSON_MODEL_PATH` | Optional second model for people | unset |
+| `VISION_MODEL_PATH` | Fire model weights | `models/fire.pt` if present, else AI disabled |
+| `VISION_PERSON_MODEL_PATH` | Optional second model for people | `models/yolov8n.pt` if present |
 | `VISION_FIRE_CLASS_NAMES` | Fire class names | `fire,flame` |
 | `VISION_PERSON_CLASS_NAME` | Person class name | `person` |
 

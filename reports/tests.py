@@ -157,6 +157,7 @@ class HazardSyncTests(TestCase):
         self.assertEqual([employee["employee_id"] for employee in catalog.data], [str(self.employee.employee_id)])
 
 
+@override_settings(VISION_PERSON_MODEL_PATH="")
 class SmartRigVisionTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="vision-user", password="a-safe-test-password")
